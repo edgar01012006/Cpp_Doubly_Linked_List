@@ -47,6 +47,16 @@ class list {
 
         void clear();
 
+        // Non-member functions
+        template<typename U>
+        friend void swap(U& lhs, U& rhs);
+
+        // Operations
+        void merge(list& other);
+        void sort();
+        void reverse();
+        void unique();
+
         // miscellaneous
         void print() const;
 };
@@ -210,6 +220,79 @@ void list<T>::clear() {
     }
     m_head = m_tail = nullptr;
     m_size = 0;
+}
+
+
+
+// Non-member functions
+template<typename U>
+void swap(U& lhs, U& rhs) {
+    U tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+}
+
+
+
+// Operations
+template<typename T>
+void list<T>::merge(list<T>& other) {
+    if (this == &other) {
+        return;
+    }
+    else if (other.empty()) {
+        return;
+    }
+    else if (this->empty()) {
+        m_head = other.m_head;
+        m_tail = other.m_tail;
+        m_size = other.m_size;
+    }
+    else {
+        m_tail->m_next = other.m_head;
+        other.m_head->m_prev = m_tail;
+        m_tail = other.m_tail;
+        m_size += other.m_size;
+        this->sort();
+    }
+    other.m_head = nullptr;
+    other.m_tail = nullptr;
+    other.m_size = 0;
+}
+
+template<typename T>
+void list<T>::reverse() {
+    if (empty()) {
+        throw empty_list_exception("empty list");
+    }
+    Node* head = m_head;
+    Node* tail = m_tail;
+    for (size_t i = 0; i < m_size / 2; ++i) {
+        swap(head->m_data, tail->m_data);
+        head = head->m_next;
+        tail = tail->m_prev;
+    }
+}
+
+template<typename T>
+void list<T>::sort() {
+    if (empty()) {
+        throw empty_list_exception("empty list");
+    }
+    for (size_t i = 0; i < m_size - 1; ++i) {
+        Node* head = m_head;  
+        for (size_t j = 0; j < m_size - i - 1; ++j) {
+            if (head->m_data > head->m_next->m_data) {
+                swap(head->m_data, head->m_next->m_data);
+            }
+            head = head->m_next;
+        }
+    }
+}
+
+template<typename T>
+void list<T>::unique() {
+
 }
 
 
