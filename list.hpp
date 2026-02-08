@@ -243,21 +243,28 @@ void list<T>::merge(list<T>& other) {
     else if (other.empty()) {
         return;
     }
-    else if (this->empty()) {
-        m_head = other.m_head;
-        m_tail = other.m_tail;
-        m_size = other.m_size;
+
+    list<T> newList;
+
+    Node* head = m_head;
+    Node* otherHead = other.m_head;
+
+    for (size_t i = 0; i < m_size + other.m_size; ++i) {
+        if (head != nullptr && head->m_data <= otherHead->m_data) {
+            newList.push_back(head->m_data);
+            head = head->m_next;
+        }
+        else if (otherHead != nullptr) {
+            newList.push_back(otherHead->m_data);
+            otherHead = otherHead->m_next;
+        }
     }
-    else {
-        m_tail->m_next = other.m_head;
-        other.m_head->m_prev = m_tail;
-        m_tail = other.m_tail;
-        m_size += other.m_size;
-        this->sort();
-    }
+
     other.m_head = nullptr;
     other.m_tail = nullptr;
     other.m_size = 0;
+
+    this->operator=(std::move(newList));
 }
 
 template<typename T>
@@ -279,6 +286,7 @@ void list<T>::sort() {
     if (empty()) {
         throw empty_list_exception("empty list");
     }
+
     for (size_t i = 0; i < m_size - 1; ++i) {
         Node* head = m_head;  
         for (size_t j = 0; j < m_size - i - 1; ++j) {
@@ -292,7 +300,28 @@ void list<T>::sort() {
 
 template<typename T>
 void list<T>::unique() {
+    if (empty()) {
+        throw empty_list_exception("empty list");
+    }
+    
+    list<T> newList;
 
+    Node* head = m_head;
+
+    newList.push_back(head->m_data);
+    head = head->m_next;
+
+    Node* newHead = newList.m_head;
+
+    for (size_t i = 1; i < m_size; ++i) {
+        if (newHead->m_data != head->m_data) {
+            newList.push_back(head->m_data);
+            newHead = newHead->m_next;
+        }
+        head = head->m_next;
+    }
+
+    this->operator=(std::move(newList));
 }
 
 
