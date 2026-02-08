@@ -200,6 +200,56 @@ int main()
     rev_str.reverse();
     rev_str.print(); // Expected: three two one
 
+    // 25. Unique: Sorted list with duplicates
+    test_title("Unique: Sorted List with Duplicates");
+    list<int> u1{1, 1, 2, 2, 2, 3, 3, 4};
+    u1.unique();
+    u1.print(); // Expected: 1 2 3 4
+
+    // 26. Unique: Already Unique
+    test_title("Unique: Already Unique");
+    list<int> u2{1, 2, 3, 4, 5};
+    u2.unique();
+    u2.print(); // Expected: 1 2 3 4 5
+
+    // 27. Unique: All Same Elements
+    test_title("Unique: All Same Elements");
+    list<int> u3{7, 7, 7, 7, 7};
+    u3.unique();
+    u3.print(); // Expected: 7
+
+    // 28. Unique: Single Element
+    test_title("Unique: Single Element");
+    list<int> u4{42};
+    u4.unique();
+    u4.print(); // Expected: 42
+
+    // 29. Unique: Empty List (should throw)
+    test_title("Unique: Empty List");
+    list<int> u5;
+    try
+    {
+        u5.unique();
+    }
+    catch (const empty_list_exception &e)
+    {
+        std::cout << "Caught expected error: " << e.what() << std::endl;
+    }
+
+    // 30. Unique: std::string
+    test_title("Unique: std::string");
+    list<std::string> u6{"apple", "apple", "banana", "banana", "cherry"};
+    u6.unique();
+    u6.print(); // Expected: apple banana cherry
+
+    // 31. Unique: Sort + Unique (common usage)
+    test_title("Unique: Sort + Unique");
+    list<int> u7{3, 1, 2, 3, 2, 1, 1};
+    u7.sort();
+    u7.unique();
+    u7.print(); // Expected: 1 2 3
+
+
     std::cout << "\n--- All custom tests completed ---" << std::endl;
 
     return 0;
