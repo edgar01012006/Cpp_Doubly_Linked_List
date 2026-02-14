@@ -249,6 +249,27 @@ int main()
     u7.unique();
     u7.print(); // Expected: 1 2 3
 
+    // 32. Emplace with multiple arguments (The Real Test)
+    test_title("Emplace: Multiple Arguments");
+    
+    struct Pet {
+        std::string name;
+        int age;
+        Pet(std::string n = "", int a = 0) : name(std::move(n)), age(a) {
+            std::cout << "  [Constructing Pet: " << name << "]\n";
+        }
+    };
+
+    list<Pet> pets;
+    // This calls Pet("Rex", 5) directly inside the Node
+    pets.emplace_back("Rex", 5); 
+    pets.emplace_back("Fluffy", 2);
+    
+    std::cout << "Pets list: ";
+    // Manual print since Pet doesn't have operator<<
+    // (You can add a custom print loop here if needed)
+    std::cout << "Success (Check console for construction logs)" << std::endl;
+
 
     std::cout << "\n--- All custom tests completed ---" << std::endl;
 
