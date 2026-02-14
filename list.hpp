@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <initializer_list>
+#include <type_traits>
 
 #include "list_exception.hpp"
 
@@ -18,6 +19,10 @@ class list {
             public:
                 Node(T value = T{}, Node* next = nullptr, Node* prev = nullptr) 
                     : m_data { value }, m_next { next }, m_prev { prev } {}
+
+                template<typename... Args>
+                Node(Node* next = nullptr, Node* prev = nullptr, Args&&... args)
+                    : m_next { next }, m_prev { prev }, m_data { std::forward<Args>(args)... } {}
         };
     
     private:
@@ -46,6 +51,9 @@ class list {
         void pop_front();
 
         void clear();
+
+        template<typename... Args>
+        void emplace_back(Args&&... args);
 
         // Non-member functions
         template<typename U>
@@ -220,6 +228,25 @@ void list<T>::clear() {
     }
     m_head = m_tail = nullptr;
     m_size = 0;
+}
+
+template<typename T>
+template<typename... Args>
+void list<T>::emplace_back(Args&&... args) {
+    if (empty() == true) {
+        m_head = new Node(nullptr, nullptr, std::forward<Args>(args)...);
+        m_tail = m_head;
+    }
+    else if (m_head == m_tail) {
+        m_tail = new Node(nullptr, m_head, std::forward<Args>(args)...);
+        m_head->m_next = m_tail;
+    }
+    else {
+        Node* prev = m_tail;
+        m_tail = new Node(nullptr, prev, std::forward<Args>(args)...);
+        prev->m_next = m_tail;
+    }
+    ++m_size;
 }
 
 
