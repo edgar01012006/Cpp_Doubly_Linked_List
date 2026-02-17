@@ -299,13 +299,32 @@ void list<T>::reverse() {
     if (empty()) {
         throw empty_list_exception("empty list");
     }
+
     Node* head = m_head;
     Node* tail = m_tail;
+
     for (size_t i = 0; i < m_size / 2; ++i) {
-        swap(head->m_data, tail->m_data);
-        head = head->m_next;
-        tail = tail->m_prev;
+        Node* tmp_head_next = head->m_next;
+        head->m_next = head->m_prev;
+        head->m_prev = tmp_head_next;
+        head = head->m_prev;
+
+        Node* tmp_tail_next = tail->m_next;
+        tail->m_next = tail->m_prev;
+        tail->m_prev = tmp_tail_next;
+        tail = tail->m_next;
     }
+
+    // for middle element, when the number of elements is odd
+    if (m_size % 2 != 0) {
+        Node* tmp_head_next = head->m_next;
+        head->m_next = head->m_prev;
+        head->m_prev = tmp_head_next;
+    }
+
+    Node* tmp_head = m_head;
+    m_head = m_tail;
+    m_tail = tmp_head;
 }
 
 template<typename T>
