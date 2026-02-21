@@ -24,10 +24,41 @@ class list {
                 Node(Node* next = nullptr, Node* prev = nullptr, Args&&... args)
                     : m_next { next }, m_prev { prev }, m_data { std::forward<Args>(args)... } {}
         };
+
+    public:
+        struct iterator {
+            friend class list;
+            private:
+                Node* m_current;
+
+            public:
+                iterator(Node* current) : m_current { current } {}
+
+                bool operator!=(const iterator& other) const {
+                    return this->m_current != other.m_current;
+                }
+                
+                bool operator==(const iterator& other) const {
+                    return this->m_current == other.m_current;
+                }
+
+                iterator& operator++() {
+                    m_current = m_current->m_next;
+                    return *this;
+                }
+
+                iterator& operator--() {
+                    m_current = m_current->m_prev;
+                    return *this;
+                }
+
+                T& operator*() const {
+                    return m_current->m_data;
+                }
+        };
     
     private:
-        Node* m_head;
-        Node* m_tail;
+        Node* m_sentinel;
         size_t m_size;
 
     public:
@@ -39,11 +70,18 @@ class list {
         list(std::initializer_list<T> init);
         ~list();
 
+        // iterators
+        iterator begin() const;
+        iterator end() const;
+
         // Capacity
         bool empty() const;
         size_t size() const;
 
         // Modifiers
+        iterator insert(iterator pos, const T& value);
+        iterator erase(iterator pos);
+
         void push_back(const T& value);
         void pop_back();
 
@@ -71,15 +109,19 @@ class list {
 
 template<typename T>
 list<T>::list()
-    : m_head { nullptr }, m_tail { nullptr }, m_size {} {}
+    : m_sentinel { new Node {} }, m_size {} {
+    m_sentinel->m_next = m_sentinel;
+    m_sentinel->m_prev = m_sentinel;
+}
 
 template<typename T>
 list<T>::list(const list& other)
-    : m_head { nullptr }, m_tail { nullptr }, m_size {} {
-    Node* otherHead = other.m_head;
-    for (size_t i = 0; i < other.m_size; ++i) {
-        this->push_back(otherHead->m_data);
-        otherHead = otherHead->m_next;
+    : m_sentinel { new Node {} }, m_size {} {
+    m_sentinel->m_next = m_sentinel;
+    m_sentinel->m_prev = m_sentinel;
+
+    for (const auto& i: other) {
+        this->push_back(i);
     }
 }
 
@@ -87,10 +129,8 @@ template<typename T>
 list<T>& list<T>::operator=(const list& other) {
     if (this != &other) {
         this->clear();
-        Node* otherHead = other.m_head;
-        for (size_t i = 0; i < other.m_size; ++i) {
-            this->push_back(otherHead->m_data);
-            otherHead = otherHead->m_next;
+        for (const auto& i: other) {
+            this->push_back(i);
         }
     }
     return *this;
@@ -98,9 +138,9 @@ list<T>& list<T>::operator=(const list& other) {
 
 template<typename T>
 list<T>::list(list&& other) noexcept
-    : m_head { other.m_head }, m_tail { other.m_tail }, m_size { other.m_size } {
-    other.m_head = nullptr;
-    other.m_tail = nullptr;
+    : m_sentinel { other.m_sentinel }, m_size { other.m_size } {   
+    other.m_sentinel->m_next = other.m_sentinel;
+    other.m_sentinel->m_prev = other.m_sentinel;
     other.m_size = 0;
 }
 
@@ -108,11 +148,11 @@ template<typename T>
 list<T>& list<T>::operator=(list&& other) noexcept {
     if (this != &other) {
         this->clear();
-        m_head = other.m_head;
-        m_tail = other.m_tail;
+        m_sentinel = other.m_sentinel;
         m_size = other.m_size;
-        other.m_head = nullptr;
-        other.m_tail = nullptr;
+
+        other.m_sentinel->m_next = other.m_sentinel;
+        other.m_sentinel->m_prev = other.m_sentinel;
         other.m_size = 0;
     }
     return *this;
@@ -120,8 +160,11 @@ list<T>& list<T>::operator=(list&& other) noexcept {
 
 template<typename T>
 list<T>::list(std::initializer_list<T> init) 
-    : m_head { nullptr }, m_tail { nullptr }, m_size {} {
-    for (auto i : init) {
+    : m_sentinel { new Node {} }, m_size {} {
+    m_sentinel->m_next = m_sentinel;
+    m_sentinel->m_prev = m_sentinel;
+
+    for (const auto& i : init) {
         this->push_back(i);
     }
 }
@@ -129,6 +172,19 @@ list<T>::list(std::initializer_list<T> init)
 template<typename T>
 list<T>::~list() {
     clear();
+}
+
+
+
+// iterators
+template <typename T>
+typename list<T>::iterator list<T>::begin() const {
+    return list<T>::iterator(m_sentinel->m_next);
+}
+
+template <typename T>
+typename list<T>::iterator list<T>::end() const {
+    return list<T>::iterator(m_sentinel);
 }
 
 
@@ -145,240 +201,212 @@ size_t list<T>::size() const {
 }
 
 
+
 // Modifiers
+template <typename T>
+typename list<T>::iterator list<T>::insert(list<T>::iterator pos, const T& value) {
+    Node* current = pos.m_current;
+
+    Node* newNode = new Node(value, current->m_prev, current);
+
+    current->m_prev->m_next = newNode;
+    current->m_prev = newNode;
+
+    ++m_size;
+
+    return list<T>::iterator(newNode);
+}
+
+template <typename T>
+typename list<T>::iterator list<T>::erase(list<T>::iterator pos) {
+    Node* current = pos.m_current;
+
+    current->m_prev->m_next = current->m_next;
+    current->m_next->m_prev = current->m_prev;
+
+    Node* tmp = current->m_next;
+
+    delete current;
+
+    --m_size;
+
+    return list<T>::iterator(tmp);
+}
+
 template<typename T>
 void list<T>::push_back(const T& value) {
-    if (empty() == true) {
-        m_head = new Node(value);
-        m_tail = m_head;
-    }
-    else if (m_head == m_tail) {
-        m_tail = new Node(value, nullptr, m_head);
-        m_head->m_next = m_tail;
-    }
-    else {
-        Node* prev = m_tail;
-        m_tail = new Node(value, nullptr, prev);
-        prev->m_next = m_tail;
-    }
-    ++m_size;
+    insert(this->end(), value);
 }
 
 template<typename T>
 void list<T>::pop_back() {
-    if (empty() == true) {
-        throw empty_list_exception("empty list");
-    }
-    else if (m_head == m_tail) {
-        delete m_head;
-        m_head = m_tail = nullptr;
-    }
-    else {
-        Node* tail = m_tail;
-        m_tail = m_tail->m_prev;
-        delete tail;
-        m_tail->m_next = nullptr;
-    }
-    --m_size;
+    if (!empty()) { erase(--this->end()); }
 }
 
 template<typename T>
 void list<T>::push_front(const T& value) {
-    if (empty() == true) {
-        m_head = new Node(value);
-        m_tail = m_head;
-    }
-    else if (m_head == m_tail) {
-        m_head = new Node(value, m_tail, nullptr);
-        m_tail->m_prev = m_head;
-    }
-    else {
-        Node* head = m_head;
-        m_head = new Node(value, head, nullptr);
-        head->m_prev = m_head;
-    }
-    ++m_size;
+    insert(this->begin(), value);
 } 
 
 template<typename T>
 void list<T>::pop_front() {
-    if (empty() == true) {
-        throw empty_list_exception("empty list");
-    }
-    else if (m_head == m_tail) {
-        delete m_head;
-        m_head = m_tail = nullptr;
-    }
-    else {
-        Node* head = m_head;
-        m_head = m_head->m_next;
-        delete head;
-        m_head->m_prev = nullptr;
-    }
-    --m_size;
+    if (!empty()) { erase(this->begin()); }
 }
 
 template<typename T>
 void list<T>::clear() {
-    Node* head = m_head;
-    for (size_t i = 0; i < m_size; ++i) {
-        m_head = m_head->m_next;
-        delete head;
-        head = m_head;
-    }
-    m_head = m_tail = nullptr;
-    m_size = 0;
-}
-
-template<typename T>
-template<typename... Args>
-void list<T>::emplace_back(Args&&... args) {
-    if (empty() == true) {
-        m_head = new Node(nullptr, nullptr, std::forward<Args>(args)...);
-        m_tail = m_head;
-    }
-    else if (m_head == m_tail) {
-        m_tail = new Node(nullptr, m_head, std::forward<Args>(args)...);
-        m_head->m_next = m_tail;
-    }
-    else {
-        Node* prev = m_tail;
-        m_tail = new Node(nullptr, prev, std::forward<Args>(args)...);
-        prev->m_next = m_tail;
-    }
-    ++m_size;
-}
-
-
-
-// Non-member functions
-template<typename U>
-void swap(U& lhs, U& rhs) {
-    U tmp = lhs;
-    lhs = rhs;
-    rhs = tmp;
-}
-
-
-
-// Operations
-template<typename T>
-void list<T>::merge(list<T>& other) {
-    if (this == &other) {
-        return;
-    }
-    else if (other.empty()) {
-        return;
-    }
-
-    list<T> newList;
-
-    Node* head = m_head;
-    Node* otherHead = other.m_head;
-
-    for (size_t i = 0; i < m_size + other.m_size; ++i) {
-        if (head != nullptr && head->m_data <= otherHead->m_data) {
-            newList.push_back(head->m_data);
-            head = head->m_next;
-        }
-        else if (otherHead != nullptr) {
-            newList.push_back(otherHead->m_data);
-            otherHead = otherHead->m_next;
-        }
-    }
-
-    other.m_head = nullptr;
-    other.m_tail = nullptr;
-    other.m_size = 0;
-
-    this->operator=(std::move(newList));
-}
-
-template<typename T>
-void list<T>::reverse() {
-    if (empty()) {
-        throw empty_list_exception("empty list");
-    }
-
-    Node* head = m_head;
-    Node* tail = m_tail;
-
-    for (size_t i = 0; i < m_size / 2; ++i) {
-        Node* tmp_head_next = head->m_next;
-        head->m_next = head->m_prev;
-        head->m_prev = tmp_head_next;
-        head = head->m_prev;
-
-        Node* tmp_tail_next = tail->m_next;
-        tail->m_next = tail->m_prev;
-        tail->m_prev = tmp_tail_next;
-        tail = tail->m_next;
-    }
-
-    // for middle element, when the number of elements is odd
-    if (m_size % 2 != 0) {
-        Node* tmp_head_next = head->m_next;
-        head->m_next = head->m_prev;
-        head->m_prev = tmp_head_next;
-    }
-
-    Node* tmp_head = m_head;
-    m_head = m_tail;
-    m_tail = tmp_head;
-}
-
-template<typename T>
-void list<T>::sort() {
-    if (empty()) {
-        throw empty_list_exception("empty list");
-    }
-
-    for (size_t i = 0; i < m_size - 1; ++i) {
-        Node* head = m_head;  
-        for (size_t j = 0; j < m_size - i - 1; ++j) {
-            if (head->m_data > head->m_next->m_data) {
-                swap(head->m_data, head->m_next->m_data);
-            }
-            head = head->m_next;
-        }
+    while (!empty()) {
+        pop_back();
     }
 }
 
-template<typename T>
-void list<T>::unique() {
-    if (empty()) {
-        throw empty_list_exception("empty list");
-    }
+// template<typename T>
+// template<typename... Args>
+// void list<T>::emplace_back(Args&&... args) {
+//     if (empty() == true) {
+//         m_head = new Node(nullptr, nullptr, std::forward<Args>(args)...);
+//         m_tail = m_head;
+//     }
+//     else if (m_head == m_tail) {
+//         m_tail = new Node(nullptr, m_head, std::forward<Args>(args)...);
+//         m_head->m_next = m_tail;
+//     }
+//     else {
+//         Node* prev = m_tail;
+//         m_tail = new Node(nullptr, prev, std::forward<Args>(args)...);
+//         prev->m_next = m_tail;
+//     }
+//     ++m_size;
+// }
+
+
+
+// // Non-member functions
+// template<typename U>
+// void swap(U& lhs, U& rhs) {
+//     U tmp = lhs;
+//     lhs = rhs;
+//     rhs = tmp;
+// }
+
+
+
+// // Operations
+// template<typename T>
+// void list<T>::merge(list<T>& other) {
+//     if (this == &other) {
+//         return;
+//     }
+//     else if (other.empty()) {
+//         return;
+//     }
+
+//     list<T> newList;
+
+//     Node* head = m_head;
+//     Node* otherHead = other.m_head;
+
+//     for (size_t i = 0; i < m_size + other.m_size; ++i) {
+//         if (head != nullptr && head->m_data <= otherHead->m_data) {
+//             newList.push_back(head->m_data);
+//             head = head->m_next;
+//         }
+//         else if (otherHead != nullptr) {
+//             newList.push_back(otherHead->m_data);
+//             otherHead = otherHead->m_next;
+//         }
+//     }
+
+//     other.m_head = nullptr;
+//     other.m_tail = nullptr;
+//     other.m_size = 0;
+
+//     this->operator=(std::move(newList));
+// }
+
+// template<typename T>
+// void list<T>::reverse() {
+//     if (empty()) {
+//         throw empty_list_exception("empty list");
+//     }
+
+//     Node* head = m_head;
+//     Node* tail = m_tail;
+
+//     for (size_t i = 0; i < m_size / 2; ++i) {
+//         Node* tmp_head_next = head->m_next;
+//         head->m_next = head->m_prev;
+//         head->m_prev = tmp_head_next;
+//         head = head->m_prev;
+
+//         Node* tmp_tail_next = tail->m_next;
+//         tail->m_next = tail->m_prev;
+//         tail->m_prev = tmp_tail_next;
+//         tail = tail->m_next;
+//     }
+
+//     // for middle element, when the number of elements is odd
+//     if (m_size % 2 != 0) {
+//         Node* tmp_head_next = head->m_next;
+//         head->m_next = head->m_prev;
+//         head->m_prev = tmp_head_next;
+//     }
+
+//     Node* tmp_head = m_head;
+//     m_head = m_tail;
+//     m_tail = tmp_head;
+// }
+
+// template<typename T>
+// void list<T>::sort() {
+//     if (empty()) {
+//         throw empty_list_exception("empty list");
+//     }
+
+//     for (size_t i = 0; i < m_size - 1; ++i) {
+//         Node* head = m_head;  
+//         for (size_t j = 0; j < m_size - i - 1; ++j) {
+//             if (head->m_data > head->m_next->m_data) {
+//                 swap(head->m_data, head->m_next->m_data);
+//             }
+//             head = head->m_next;
+//         }
+//     }
+// }
+
+// template<typename T>
+// void list<T>::unique() {
+//     if (empty()) {
+//         throw empty_list_exception("empty list");
+//     }
     
-    list<T> newList;
+//     list<T> newList;
 
-    Node* head = m_head;
+//     Node* head = m_head;
 
-    newList.push_back(head->m_data);
-    head = head->m_next;
+//     newList.push_back(head->m_data);
+//     head = head->m_next;
 
-    Node* newHead = newList.m_head;
+//     Node* newHead = newList.m_head;
 
-    for (size_t i = 1; i < m_size; ++i) {
-        if (newHead->m_data != head->m_data) {
-            newList.push_back(head->m_data);
-            newHead = newHead->m_next;
-        }
-        head = head->m_next;
-    }
+//     for (size_t i = 1; i < m_size; ++i) {
+//         if (newHead->m_data != head->m_data) {
+//             newList.push_back(head->m_data);
+//             newHead = newHead->m_next;
+//         }
+//         head = head->m_next;
+//     }
 
-    this->operator=(std::move(newList));
-}
+//     this->operator=(std::move(newList));
+// }
 
 
 
 // miscellaneous
 template<typename T>
 void list<T>::print() const {
-    Node* head = m_head;
-    while (head != nullptr) {
-        std::cout << head->m_data << " ";
-        head = head->m_next;
+    for (const auto& i: *this) {
+        std::cout << i << " ";
     }
     std::cout << std::endl;
 }
