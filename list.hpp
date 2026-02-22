@@ -4,8 +4,7 @@
 #include <iostream>
 #include <initializer_list>
 #include <type_traits>
-
-#include "list_exception.hpp"
+#include <utility>
 
 template<typename T>
 class list {
@@ -20,9 +19,9 @@ class list {
                 Node(T value = T{}, Node* next = nullptr, Node* prev = nullptr) 
                     : m_data { value }, m_next { next }, m_prev { prev } {}
 
-                template<typename... Args>
-                Node(Node* next = nullptr, Node* prev = nullptr, Args&&... args)
-                    : m_next { next }, m_prev { prev }, m_data { std::forward<Args>(args)... } {}
+                // template<typename... Args>
+                // Node(Node* next = nullptr, Node* prev = nullptr, Args&&... args)
+                //     : m_next { next }, m_prev { prev }, m_data { std::forward<Args>(args)... } {}
         };
 
     public:
@@ -56,6 +55,103 @@ class list {
                     return m_current->m_data;
                 }
         };
+
+        struct const_iterator {
+            friend class list;
+            private:
+                const Node* m_current;
+
+            public:
+                const_iterator(const Node* current) : m_current { current } {}
+
+                bool operator!=(const const_iterator& other) const {
+                    return this->m_current != other.m_current;
+                }
+
+                bool operator==(const const_iterator& other) const {
+                    return this->m_current == other.m_current;
+                }
+
+                const_iterator& operator++() {
+                    m_current = m_current->m_next;
+                    return *this;
+                }
+
+                const_iterator& operator--() {
+                    m_current = m_current->m_prev;
+                    return *this;
+                }
+
+                const T& operator*() const {
+                    return m_current->m_data;
+                }
+        };
+
+        struct reverse_iterator {
+            friend class list;
+            private:
+                iterator m_iterator;
+            
+            public:
+                reverse_iterator(Node* current) : m_iterator { current } {}
+
+                bool operator!=(const reverse_iterator& other) const {
+                    return (m_iterator != other.m_iterator);
+                }
+                
+                bool operator==(const reverse_iterator& other) const {
+                    return (m_iterator == other.m_iterator);
+                }
+
+                reverse_iterator& operator++() {
+                    --(m_iterator);
+                    return *this;
+                }
+
+                reverse_iterator& operator--() {
+                    ++(m_iterator);
+                    return *this;
+                }
+
+                T& operator*() const {
+                    auto tmp = m_iterator;
+                    --tmp;
+                    return *tmp;
+                }
+        };
+
+        struct const_reverse_iterator {
+            friend class list;
+            private:
+                const_iterator m_const_iterator;
+
+            public:
+                const_reverse_iterator(const Node* current) : m_const_iterator { current } {}
+
+                bool operator!=(const const_reverse_iterator& other) const {
+                    return (this->m_const_iterator != other.m_const_iterator);
+                }
+
+                bool operator==(const const_reverse_iterator& other) const {
+                    return (this->m_const_iterator == other.m_const_iterator);
+                }
+
+                const_reverse_iterator& operator++() {
+                    --(m_const_iterator);
+                    return *this;
+                }
+
+                const_reverse_iterator& operator--() {
+                    ++(m_const_iterator);
+                    return *this;
+                }
+
+                const T& operator*() const {
+                    auto tmp = m_const_iterator;
+                    --tmp;
+                    return *tmp;
+                }
+        };
     
     private:
         Node* m_sentinel;
@@ -71,8 +167,22 @@ class list {
         ~list();
 
         // iterators
-        iterator begin() const;
-        iterator end() const;
+        iterator begin();
+        const_iterator begin() const;
+        const_iterator cbegin() const noexcept;
+
+        iterator end();
+        const_iterator end() const;
+        const_iterator cend() const noexcept;
+
+        reverse_iterator rbegin();
+        const_reverse_iterator rbegin() const;
+        const_reverse_iterator crbegin() const noexcept;
+
+        reverse_iterator rend();
+        const_reverse_iterator rend() const;
+        const_reverse_iterator crend() const noexcept;
+
 
         // Capacity
         bool empty() const;
@@ -80,7 +190,7 @@ class list {
 
         // Modifiers
         iterator insert(iterator pos, const T& value);
-        iterator erase(iterator pos);
+        iterator erase(iterator pos);     
 
         void push_back(const T& value);
         void pop_back();
@@ -90,18 +200,18 @@ class list {
 
         void clear();
 
-        template<typename... Args>
-        void emplace_back(Args&&... args);
+        // template<typename... Args>
+        // void emplace_back(Args&&... args);
 
-        // Non-member functions
-        template<typename U>
-        friend void swap(U& lhs, U& rhs);
+        // // Non-member functions
+        // template<typename U>
+        // friend void swap(U& lhs, U& rhs);
 
-        // Operations
-        void merge(list& other);
-        void sort();
-        void reverse();
-        void unique();
+        // // Operations
+        // void merge(list& other);
+        // void sort();
+        // void reverse();
+        // void unique();
 
         // miscellaneous
         void print() const;
@@ -109,14 +219,14 @@ class list {
 
 template<typename T>
 list<T>::list()
-    : m_sentinel { new Node {} }, m_size {} {
+    : m_sentinel { new Node{} }, m_size {} {
     m_sentinel->m_next = m_sentinel;
     m_sentinel->m_prev = m_sentinel;
 }
 
 template<typename T>
 list<T>::list(const list& other)
-    : m_sentinel { new Node {} }, m_size {} {
+    : m_sentinel { new Node{} }, m_size {} {
     m_sentinel->m_next = m_sentinel;
     m_sentinel->m_prev = m_sentinel;
 
@@ -138,7 +248,8 @@ list<T>& list<T>::operator=(const list& other) {
 
 template<typename T>
 list<T>::list(list&& other) noexcept
-    : m_sentinel { other.m_sentinel }, m_size { other.m_size } {   
+    : m_sentinel { other.m_sentinel }, m_size { other.m_size } {
+    other.m_sentinel = new Node{};
     other.m_sentinel->m_next = other.m_sentinel;
     other.m_sentinel->m_prev = other.m_sentinel;
     other.m_size = 0;
@@ -148,9 +259,12 @@ template<typename T>
 list<T>& list<T>::operator=(list&& other) noexcept {
     if (this != &other) {
         this->clear();
+        delete m_sentinel;
+
         m_sentinel = other.m_sentinel;
         m_size = other.m_size;
 
+        other.m_sentinel = new Node{};
         other.m_sentinel->m_next = other.m_sentinel;
         other.m_sentinel->m_prev = other.m_sentinel;
         other.m_size = 0;
@@ -160,7 +274,7 @@ list<T>& list<T>::operator=(list&& other) noexcept {
 
 template<typename T>
 list<T>::list(std::initializer_list<T> init) 
-    : m_sentinel { new Node {} }, m_size {} {
+    : m_sentinel { new Node{} }, m_size {} {
     m_sentinel->m_next = m_sentinel;
     m_sentinel->m_prev = m_sentinel;
 
@@ -172,20 +286,78 @@ list<T>::list(std::initializer_list<T> init)
 template<typename T>
 list<T>::~list() {
     clear();
+    delete m_sentinel;
 }
 
 
 
 // iterators
 template <typename T>
-typename list<T>::iterator list<T>::begin() const {
+typename list<T>::iterator list<T>::begin() {
     return list<T>::iterator(m_sentinel->m_next);
 }
 
 template <typename T>
-typename list<T>::iterator list<T>::end() const {
+typename list<T>::const_iterator list<T>::begin() const {
+    return list<T>::const_iterator(m_sentinel->m_next);
+}
+
+template <typename T>
+typename list<T>::const_iterator list<T>::cbegin() const noexcept {
+    return list<T>::const_iterator(m_sentinel->m_next);
+}
+
+
+
+template <typename T>
+typename list<T>::iterator list<T>::end() {
     return list<T>::iterator(m_sentinel);
 }
+
+template <typename T>
+typename list<T>::const_iterator list<T>::end() const {
+    return list<T>::const_iterator(m_sentinel);
+}
+
+template <typename T>
+typename list<T>::const_iterator list<T>::cend() const noexcept {
+    return list<T>::const_iterator(m_sentinel);
+}
+
+
+
+template <typename T>
+typename list<T>::reverse_iterator list<T>::rbegin() {
+    return list<T>::reverse_iterator(m_sentinel);
+}
+
+template <typename T>
+typename list<T>::const_reverse_iterator list<T>::rbegin() const {
+    return list<T>::const_reverse_iterator(m_sentinel);
+}
+
+template <typename T>
+typename list<T>::const_reverse_iterator list<T>::crbegin() const noexcept {
+    return list<T>::const_reverse_iterator(m_sentinel);
+}
+
+
+
+template <typename T>
+typename list<T>::reverse_iterator list<T>::rend() {
+    return list<T>::reverse_iterator(m_sentinel->m_next);
+}
+
+template <typename T>
+typename list<T>::const_reverse_iterator list<T>::rend() const {
+    return list<T>::const_reverse_iterator(m_sentinel->m_next);
+}
+
+template <typename T>
+typename list<T>::const_reverse_iterator list<T>::crend() const noexcept {
+    return list<T>::const_reverse_iterator(m_sentinel->m_next);
+}
+
 
 
 
@@ -207,7 +379,7 @@ template <typename T>
 typename list<T>::iterator list<T>::insert(list<T>::iterator pos, const T& value) {
     Node* current = pos.m_current;
 
-    Node* newNode = new Node(value, current->m_prev, current);
+    Node* newNode = new Node(value, current, current->m_prev);
 
     current->m_prev->m_next = newNode;
     current->m_prev = newNode;
@@ -219,6 +391,7 @@ typename list<T>::iterator list<T>::insert(list<T>::iterator pos, const T& value
 
 template <typename T>
 typename list<T>::iterator list<T>::erase(list<T>::iterator pos) {
+    if (empty() || pos == end()) { return end(); }
     Node* current = pos.m_current;
 
     current->m_prev->m_next = current->m_next;
@@ -240,7 +413,7 @@ void list<T>::push_back(const T& value) {
 
 template<typename T>
 void list<T>::pop_back() {
-    if (!empty()) { erase(--this->end()); }
+    erase(--this->end());
 }
 
 template<typename T>
@@ -250,7 +423,7 @@ void list<T>::push_front(const T& value) {
 
 template<typename T>
 void list<T>::pop_front() {
-    if (!empty()) { erase(this->begin()); }
+    erase(this->begin());
 }
 
 template<typename T>
