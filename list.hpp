@@ -27,6 +27,7 @@ class list {
     public:
         struct iterator {
             friend class list;
+            friend class const_iterator;
             private:
                 Node* m_current;
 
@@ -63,6 +64,7 @@ class list {
 
             public:
                 const_iterator(const Node* current) : m_current { current } {}
+                const_iterator(const iterator& it) : m_current { it.m_current } {}
 
                 bool operator!=(const const_iterator& other) const {
                     return this->m_current != other.m_current;
@@ -89,6 +91,7 @@ class list {
 
         struct reverse_iterator {
             friend class list;
+            friend class const_reverse_iterator;
             private:
                 iterator m_iterator;
             
@@ -127,6 +130,7 @@ class list {
 
             public:
                 const_reverse_iterator(const Node* current) : m_const_iterator { current } {}
+                const_reverse_iterator(const reverse_iterator& reverse_it) : m_const_iterator { reverse_it.m_iterator } {}
 
                 bool operator!=(const const_reverse_iterator& other) const {
                     return (this->m_const_iterator != other.m_const_iterator);
@@ -413,7 +417,7 @@ void list<T>::push_back(const T& value) {
 
 template<typename T>
 void list<T>::pop_back() {
-    erase(--this->end());
+    erase(iterator(m_sentinel->m_prev));
 }
 
 template<typename T>
